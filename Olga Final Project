@@ -1,0 +1,59 @@
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.chrome.options import Options
+from webdriver_manager.chrome import ChromeDriverManager
+import xml.etree.ElementTree as ET
+import os
+import time
+
+options = Options()
+options.add_argument("--start-maximized")
+driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
+
+root = ET.Element("TestReport")
+
+def log_result(scenario, test_id, description, result, automatable="No"):
+    test_case = ET.SubElement(scenario, "TestCase", id=str(test_id))
+    ET.SubElement(test_case, "Description").text = description
+    ET.SubElement(test_case, "Automatable").text = automatable
+    ET.SubElement(test_case, "Result").text = result
+
+try:
+    scenario = ET.SubElement(root, "TestScenario", name="Login Feature")
+
+    driver.get("https://demo.guru99.com/Security/SEC_V1/index.php")
+    time.sleep(3)
+    try:
+        driver.find_element(By.NAME, "uid").send_keys("your_username")
+        driver.find_element(By.NAME, "password").send_keys("your_password")
+        driver.find_element(By.NAME, "password").submit()
+        time.sleep(5)
+        if "Dashboard" in driver.title:
+            log_result(scenario, 1, "Valid login with correct credentials.", "Passed", "Yes")
+        else:
+            log_result(scenario, 1, "Valid login with correct credentials.", "Failed", "Yes")
+    except Exception as e:
+        log_result(scenario, 1, "Valid login with correct credentials.", f"Failed: {e}", "Yes")
+
+    driver.get("https://demo.guru99.com/Security/SEC_V1/index.php")
+    try:
+        driver.find_element(By.NAME, "uid").send_keys("invalid_username")
+        driver.find_element(By.NAME, "password").send_keys("your_password")
+        driver.find_element(By.NAME, "password").submit()
+        time.sleep(5)
+        if "error" in driver.page_source.lower():
+            log_result(scenario, 2, "Login fails with invalid username.", "Passed", "Yes")
+        else:
+            log_result(scenario, 2, "Login fails with invalid username.", "Failed", "Yes")
+    except Exception as e:
+        log_result(scenario, 2, "Login fails with invalid username.", f"Failed: {e}", "Yes")
+
+finally:
+    driver.quit()
+
+report_path = r"C:\path\xml\test_report.xml"
+os.makedirs(os.path.dirname(report_path), exist_ok=True)
+ET.ElementTree(root).write(report_path, encoding='utf-8', xml_declaration=True)
+
+print(f"Test report saved to {report_path}")
